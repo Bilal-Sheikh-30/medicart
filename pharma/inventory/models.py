@@ -48,18 +48,22 @@ class MedCategory(models.Model):
     
 class Item(models.Model):
     name = models.CharField(max_length=100)
-    med_formula = models.ForeignKey(MedFormula, on_delete=models.CASCADE, related_name='medFormula')
+    med_formula = models.ForeignKey(MedFormula, on_delete=models.CASCADE, related_name='medFormula', blank=True, null=True)
     category = models.ForeignKey(MedCategory, on_delete=models.CASCADE, related_name='category')
     # form : tablet / syrup / capsules
-    form = models.CharField(max_length=50)
+    form = models.CharField(max_length=50, null=True, blank=True)
     # ml of syp / tabs per strip
-    qty_per_pack = models.IntegerField()
-    price_per_strip = models.FloatField()
+    qty_per_pack = models.IntegerField(null=True, blank=True)
+    price_per_strip = models.FloatField(null=True, blank=True)
     min_threshold_qty = models.IntegerField()
     max_threshold_qty = models.IntegerField()
     qty_status = models.CharField(max_length=100)
     usage = models.CharField(max_length=1000, blank=True, null=True)
     precautions = models.CharField(max_length=1000, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
 
 #following table will hold record of orders made by warehouse to the vendors
 class InventoryOrders(models.Model):
@@ -68,6 +72,9 @@ class InventoryOrders(models.Model):
     qty_ordered = models.IntegerField()
     order_status = models.CharField(max_length=50)
     vendorID = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='vendorId') 
+
+    def __str__(self):
+        return self.id
 
 class MedImage(models.Model):
     itemId = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='itemId')
