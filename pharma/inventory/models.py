@@ -57,7 +57,9 @@ class Item(models.Model):
     form = models.CharField(max_length=50, null=True, blank=True)
     # ml of syp / tabs per strip
     qty_per_pack = models.IntegerField(null=True, blank=True)
-    price_per_strip = models.FloatField(null=True, blank=True)
+    price = models.FloatField(null=True, blank=True)
+    # packaging_unit = ml/box/strip 
+    packaging_unit = models.CharField(max_length=20, null=True)
     min_threshold_qty = models.IntegerField()
     max_threshold_qty = models.IntegerField()
     qty_status = models.CharField(max_length=100)
