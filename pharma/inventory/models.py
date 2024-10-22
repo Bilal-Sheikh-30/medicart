@@ -28,11 +28,6 @@ class Address(models.Model):
     def __str__(Self):
         return Self.address_title
 
-class MedFormula(models.Model):
-    formula_name = models.CharField(max_length=1000)
-
-    def __str__(self):
-        return self.formula_name
     
 class Company(models.Model):
     name = models.CharField(max_length=100)
@@ -45,7 +40,21 @@ class MedCategory(models.Model):
 
     def __str__(self):
         return self.category_name
+
+class MedFormula(models.Model):
+    category = models.ForeignKey(MedCategory, on_delete=models.CASCADE, related_name='generic_name', null=True)
+    formula_name = models.CharField(max_length=1000)
+
+    def __str__(self):
+        return self.formula_name
     
+class MedImage(models.Model):
+    item = models.OneToOneField('Item', on_delete=models.CASCADE, related_name='image', null=True)  # One-to-One relationship
+    image = models.ImageField(upload_to='photos/', blank=True, null=True)
+
+    def __str__(self):
+        return f"Image for {self.item.name}"
+
 class Item(models.Model):
     name = models.CharField(max_length=100)
     med_formula = models.ForeignKey(MedFormula, on_delete=models.CASCADE, related_name='medFormula', blank=True, null=True)
@@ -83,9 +92,6 @@ class InventoryOrders(models.Model):
     def __str__(self):
         return self.id
 
-class MedImage(models.Model):
-    itemId = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='itemId')
-    image = models.ImageField(upload_to='photos/', blank=True, null=True)
 
 class Symptom(models.Model):
     med_formula = models.ForeignKey(MedFormula, on_delete=models.CASCADE, related_name='med_formula')
