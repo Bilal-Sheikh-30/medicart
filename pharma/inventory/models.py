@@ -75,7 +75,7 @@ class Item(models.Model):
     description = models.CharField(max_length=500, null=True, blank=True)
     usage = models.CharField(max_length=1000, blank=True, null=True)
     precautions = models.CharField(max_length=1000, blank=True, null=True)
-    qty_sold = models.IntegerField()
+    qty_sold = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
