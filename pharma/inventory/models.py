@@ -71,6 +71,7 @@ class Item(models.Model):
     packaging_unit = models.CharField(max_length=20, null=True)
     min_threshold_qty = models.IntegerField()
     max_threshold_qty = models.IntegerField()
+    current_qty = models.IntegerField(default=0)
     qty_status = models.CharField(max_length=100)
     description = models.CharField(max_length=500, null=True, blank=True)
     usage = models.CharField(max_length=1000, blank=True, null=True)
