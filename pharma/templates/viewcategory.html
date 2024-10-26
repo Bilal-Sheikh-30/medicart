@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse - Categories</title>
+</head>
+<body>
+    <a href="{% url 'inventory:addcategorypage' %}">Add New Category</a>
+    {% if categories %}
+    <h1>List of Categories</h1>
+    
+    <ul>
+        {% for category in categories %}
+            <li>
+                <a href="{% url 'inventory:editcategorypage' category.id %}">{{ category.category_name }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+    {%else%}
+    <p>No category to display</p>
+    {% endif %}
+</body>
+</html>
