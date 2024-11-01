@@ -77,6 +77,8 @@ class Item(models.Model):
     usage = models.CharField(max_length=1000, blank=True, null=True)
     precautions = models.CharField(max_length=1000, blank=True, null=True)
     qty_sold = models.IntegerField(default=0)
+    # item_status: active / inactive 
+    item_status = models.CharField(max_length=20, default='active')
 
     def __str__(self):
         return self.name

@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import Company, MedCategory, MedFormula
+from .models import Company, MedCategory, MedFormula, Item
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -76,6 +76,10 @@ def editformula(request, formula_id):
             messages.success(request, 'Formula Name updated successfully.')
 
     return render(request, 'addformula.html', {'formula': formula})
+
+def allitems(request):
+    items = Item.objects.all()
+    return render(request,'allitems.html',{'items':items})
 
 def sales(request):
     return render(request,'inv_layout.html')

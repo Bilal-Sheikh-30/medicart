@@ -17,5 +17,6 @@ urlpatterns = [
     path('viewformulae/', views.viewformulae, name='viewformulaepage'),
     path('addformula/', views.addformula, name='addformulapage'),
     path('editformula/<int:formula_id>/', views.editformula, name='editformulapage'),
+    path('allitems/', views.allitems, name='allitemspage'),
     path('logout/', LogoutView.as_view(next_page=homepage), name='logout'),
 ]
