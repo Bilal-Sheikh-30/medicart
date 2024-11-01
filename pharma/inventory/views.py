@@ -1,81 +1,123 @@
 from django.shortcuts import render
-from .models import Company, MedCategory, MedFormula, Item
+from .models import *
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import *
 
 # Create your views here.
 
 def warehouse(request):
     return render(request,'warehouse_landing.html')
 
+@api_view(['GET'])
 def allcompanies(request):
     companies = Company.objects.all()
-    return render(request,'allcompanies.html', {'companies':companies})
+    serialized_companies = CompanySerializer(companies, many=True).data
+    return Response(serialized_companies)
 
+@api_view(['POST'])
 def addcompany(request):
-    if request.method == 'POST':
-       company_name = request.POST.get('company_name')
-       if Company.objects.filter(name=company_name).exists():
-           messages.error(request,'Company already exists!')
-       else:
-           Company.objects.create(name=company_name)
-           messages.success(request,'added successfully!!')
-    return render(request,'addcompany.html')
+    response_data = {'message':''}
+    data = request.data
+    serialized_company = CompanySerializer(data=data)
+    if Company.objects.filter(name=data.get('name')).exists():
+        response_data['message'] = 'Company already exists'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    elif serialized_company.is_valid():
+        serialized_company.save()
+        response_data['message'] = 'Company added.'
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serialized_company.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
 def viewcategory(request):
     categories = MedCategory.objects.all()
-    return render(request,'viewcategory.html', {'categories': categories})
+    serialized_categories = CategorySerializer(categories, many=True).data
+    return Response(serialized_categories)
 
+@api_view(['POST'])
 def addcategory(request):
-    if request.method == 'POST':
-       category_name = request.POST.get('category_name')
-       if MedCategory.objects.filter(category_name=category_name).exists():
-           messages.error(request,'Category already exists!')
-       else:
-           MedCategory.objects.create(category_name=category_name)
-           messages.success(request,'Category added.')
-    return render(request, 'addcategory.html')
+    response_data = {'message':''}
+    data = request.data
+    serialized_category = CategorySerializer(data=data)
+    if MedCategory.objects.filter(category_name=data.get('category_name')).exists():
+        response_data['message'] = 'Category already exists'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    elif serialized_category.is_valid():
+        serialized_category.save()
+        response_data['message'] = 'Category added.'
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serialized_category.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def editcategory(request, category_id):
+
+@api_view(['PUT'])
+def edit_category(request, category_id):
+    response_data = {'message':''}
     category = get_object_or_404(MedCategory, id=category_id)
-    if request.method == 'POST':
-        new_category_name = request.POST.get('category_name')
-        if MedCategory.objects.filter(category_name=new_category_name).exclude(id=category_id).exists():
-            messages.error(request, 'Category name already exists!')
-        else:
-            category.category_name = new_category_name
-            category.save()
-            messages.success(request, 'Category updated successfully.')
+    data = request.data
+    new_category_name = data.get('category_name')
 
-    return render(request, 'addcategory.html', {'category': category})
+    # Check if a category with the new name already exists (excluding the current category)
+    if MedCategory.objects.filter(category_name=new_category_name).exclude(id=category_id).exists():
+        response_data['message'] = 'Category name already exists!' 
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
+    # Update and save the category
+    category.category_name = new_category_name
+    category.save()
+    response_data['message'] = 'Category updated successfully.'
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
 def viewformulae(request):
     formulae = MedFormula.objects.all()
-    return render(request,'viewformula.html', {'formulae': formulae})
+    serialized_formulae = MedFormulaSerializer(formulae, many=True).data
+    return Response(serialized_formulae)
 
+
+@api_view(['POST'])
 def addformula(request):
-    if request.method == 'POST':
-       formula_name = request.POST.get('formula_name')
-       if MedFormula.objects.filter(formula_name=formula_name).exists():
-           messages.error(request,'Formula already exists!')
-       else:
-           MedFormula.objects.create(formula_name=formula_name)
-           messages.success(request,'Formula added.')
-    return render(request, 'addformula.html')
+    response_data = {'message':''}
+    data = request.data
+    serialized_formula = MedFormulaSerializer(data=data)
+    if MedFormula.objects.filter(formula_name=data.get('formula_name')).exists():
+        response_data['message'] = 'Formula already exists'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    elif serialized_formula.is_valid():
+        new_formula = MedFormula(formula_name=data.get('formula_name'), category_id= data.get('category_id'))
+        new_formula.save()
+        response_data['message'] = 'Formula added.'
+        return Response(response_data, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serialized_formula.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST'])
 def editformula(request, formula_id):
+    response_data = {'message':''}
     formula = get_object_or_404(MedFormula, id=formula_id)
-    if request.method == 'POST':
-        new_formula_name = request.POST.get('formula_name')
-        if MedFormula.objects.filter(formula_name=new_formula_name).exclude(id=formula_id).exists():
-            messages.error(request, 'Formula name already exists!')
-        else:
-            formula.formula_name = new_formula_name
-            formula.save()
-            messages.success(request, 'Formula Name updated successfully.')
+    data = request.data
+    new_formula_name = data.get('formula_name')
+    new_category_id = data.get('category_id')
 
-    return render(request, 'addformula.html', {'formula': formula})
+    # Check if a category with the new name already exists (excluding the current category)
+    if MedFormula.objects.filter(formula_name=new_formula_name).exclude(id=formula_id).exists():
+        response_data['message'] = 'Formula name already exists!' 
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update and save the category
+    formula.formula_name = new_formula_name
+    formula.category_id = new_category_id
+    formula.save()
+    response_data['message'] = 'Formula updated.'
+    return Response(response_data, status=status.HTTP_200_OK)
 
 def allitems(request):
     items = Item.objects.all()
