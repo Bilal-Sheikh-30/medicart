@@ -9,7 +9,7 @@ class Cart(models.Model):
     qty = models.IntegerField()
 
     def __str__(self):
-        return self.id
+        return str(self.id)
     
 class Order(models.Model):
     placed_on = models.DateTimeField(auto_now_add=True)
@@ -20,7 +20,8 @@ class Order(models.Model):
     payment_mode = models.CharField(max_length=20)
     payment_receipt = models.ImageField(upload_to='payments/', blank=True, null=True)
     payment_status = models.CharField(max_length=50)
+    order_status = models.CharField(max_length=20,null=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
     

@@ -1,11 +1,12 @@
 from django.contrib import admin
-from .models import CustomUser, Vendor
+from .models import CustomUser, Vendor,Address
 
 from django.contrib.auth.admin import UserAdmin
 from .forms import CustomUserSignupForm
 # Register your models here.
 
 admin.site.register(Vendor)
+admin.site.register(Address)
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserSignupForm

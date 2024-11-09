@@ -1,6 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from inventory.models import CustomUser  # Adjust the import according to your project structure
+from .models import Cart,Order
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,3 +12,8 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = CustomUser.objects.create_user(**validated_data)
         return user
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = '__all__'
