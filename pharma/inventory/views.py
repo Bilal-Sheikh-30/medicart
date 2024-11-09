@@ -7,6 +7,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
+from onlinestore.models import *
+from onlinestore.serializers import *
 
 # Create your views here.
 
@@ -279,6 +281,11 @@ def edit_item(request, item_id):
 
     return Response(item_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+def pending_orders(request):
+    pending_orders = Order.objects.filter(order_status="Pending")
+    serialized_orders = OrderSerializer(pending_orders, many=True).data
+    return Response(serialized_orders)
 
 
 def sales(request):

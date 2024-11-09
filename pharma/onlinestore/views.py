@@ -66,10 +66,3 @@ def signupFunction(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-@api_view(['GET'])
-def pending_orders(request):
-    pending_orders = Order.objects.filter(order_status="Pending")
-    serialized_orders = OrderSerializer(pending_orders, many=True).data
-    return Response(serialized_orders)
-
