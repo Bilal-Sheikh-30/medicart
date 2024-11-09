@@ -167,7 +167,6 @@ def add_item(request):
     response_data = {'message': ''}
     data = request.data
 
-    # Extract item details, including the dosage_unit separately
     item_data = {
         'name': data.get('name'),
         'med_formula': data.get('med_formula'),
@@ -188,7 +187,6 @@ def add_item(request):
         'qty_status': 'insufficient',
     }
 
-    # Serialize and validate item data
     item_serializer = ItemSerializer(data=item_data)
 
     # Check if an item with the same name and dosage strength already exists
@@ -196,11 +194,9 @@ def add_item(request):
         response_data['message'] = 'Item with the same name and dosage strength already exists'
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-    # Save the item if data is valid
     elif item_serializer.is_valid():
         item = item_serializer.save()
 
-        # Handle the image if provided
         if 'image' in request.FILES:
             image_data = {'item': item.id, 'image': request.FILES['image']}
             image_serializer = MedImageSerializer(data=image_data)
@@ -282,14 +278,35 @@ def edit_item(request, item_id):
     return Response(item_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
+def get_item(request, item_id):
+    data = {
+        'item' : '',
+        'image' : ''
+    }
+    item = get_object_or_404(Item, id=item_id)
+    if item:
+        item = ItemSerializer(item)
+        data['item'] = item.data
+        try:
+            image = get_object_or_404(MedImage, item_id=item_id)
+            image = MedImageSerializer(image)
+            data['image'] = image.data
+        except:
+            data['image'] = 'no image available.'
+    return Response(data)
+
+
+
+# sales related views will go below
+def sales(request):
+    return render(request,'inv_layout.html')
+
+@api_view(['GET'])
 def pending_orders(request):
     pending_orders = Order.objects.filter(order_status="Pending")
     serialized_orders = OrderSerializer(pending_orders, many=True).data
     return Response(serialized_orders)
 
-
-def sales(request):
-    return render(request,'inv_layout.html')
-
+# views related to rider will go below
 def rider(request):
     return render(request,'inv_layout.html')

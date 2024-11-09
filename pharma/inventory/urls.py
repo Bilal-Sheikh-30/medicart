@@ -23,6 +23,7 @@ urlpatterns = [
     path('allitems/', views.allitems, name='allitemspage'),
     path('additem/', views.add_item, name='add_item'),
     path('edititem/<int:item_id>/', views.edit_item, name='edit_itempage'),
+    path('getitem/<int:item_id>/', views.get_item, name='getitempage'),
     path('logout/', LogoutView.as_view(next_page=homepage), name='logout'),
     path('view_pend_order/', views.pending_orders, name='pendingorder'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
