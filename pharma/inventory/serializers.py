@@ -44,3 +44,8 @@ class ItemSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Save the item with combined dosage_strength
         return super().create(validated_data)
+    
+class InvOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryOrders
+        fields = '__all__'

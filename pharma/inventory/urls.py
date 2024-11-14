@@ -24,6 +24,10 @@ urlpatterns = [
     path('additem/', views.add_item, name='add_item'),
     path('edititem/<int:item_id>/', views.edit_item, name='edit_itempage'),
     path('getitem/<int:item_id>/', views.get_item, name='getitempage'),
-    path('logout/', LogoutView.as_view(next_page=homepage), name='logout'),
+    path('getLowStockItems/', views.getLowStockItems, name='getLowStockItems'),
+    path('orderByInv/', views.orderByInv, name='orderByInvpage'),
+    path('trackInvOrder/', views.trackInvOrder, name='trackInvOrderpage'),
     path('view_pend_order/', views.pending_orders, name='pendingorder'),
+    path('receiveInvOrder/', views.receiveInvOrder, name='receiveInvOrder'),
+    path('logout/', LogoutView.as_view(next_page=homepage), name='logout'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

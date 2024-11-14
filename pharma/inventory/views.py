@@ -9,6 +9,11 @@ from rest_framework import status
 from .serializers import *
 from onlinestore.models import *
 from onlinestore.serializers import *
+from django.core.mail import send_mail
+from django.db.models import Q
+
+from django.views.decorators.csrf import csrf_exempt
+
 
 # Create your views here.
 
@@ -184,7 +189,7 @@ def add_item(request):
         'usage': data.get('usage'),
         'precautions': data.get('precautions'),
         'item_status': data.get('item_status', 'active'),
-        'qty_status': 'insufficient',
+        'qty_status': 'finished',
     }
 
     item_serializer = ItemSerializer(data=item_data)
@@ -295,7 +300,112 @@ def get_item(request, item_id):
             data['image'] = 'no image available.'
     return Response(data)
 
+# low stock items will be displayed on the home of inventory
+@api_view(['GET'])
+def getLowStockItems(request):
+    lowStocktems = Item.objects.filter(Q(qty_status='insufficient') | Q(qty_status='finished')).exclude(is_ordered=True)
+    lowStocktems = ItemSerializer(lowStocktems, many=True).data
+    return Response(lowStocktems)
 
+@api_view(['POST'])
+def orderByInv(request):
+    data = request.data
+    orderDetails = {
+        'itemId' : data.get('itemId'),
+        'qty' : data.get('qty'),
+        'vendorId' : data.get('vendorId'),
+    }
+
+    vendor = get_object_or_404(Vendor, id=orderDetails['vendorId'])
+    item = get_object_or_404(Item, id=orderDetails['itemId'])
+
+    # Email configuration
+    subject = f"Order for {item.name} {item.dosage_strength}"
+    message = (
+        f"Hello {vendor.name},\n\n"
+        f"We would like to place an order for the following item:\n\n"
+        f"Medicine Name: {item.name}\n"
+        f"Dosage Strength: {item.dosage_strength}\n"
+        f"Quantity: {orderDetails['qty']}\n\n"
+        f"Please confirm the availability and expected delivery time.\n\n"
+        f"Thank you,\n"
+        f"Team MediCart"
+    )
+    recipient_email = vendor.email
+
+    # Send the email
+    try:
+        send_mail(
+            subject,
+            message,
+            'bilalsheikh3011@gmail.com',   # Replace with your email
+            [recipient_email],
+            fail_silently=False,
+        )
+
+    except:
+        return Response({"message": "Failed to place order to the vendor."})
+    else:
+        item.is_ordered=True
+        item.save()
+        try:
+            InventoryOrders.objects.create(
+                itemId = item,
+                qty_ordered = orderDetails['qty'],
+                order_status = 'pending',
+                vendorID = vendor
+            )
+        except:
+            return Response({"message": "Email sent to Vendor but failed to update database!"})
+        else:
+            return Response({"message": "Order placed and email sent to the vendor."})
+
+@api_view(['GET'])
+def trackInvOrder(request):
+    pending_orders = InventoryOrders.objects.filter(order_status='pending').order_by('-orderDate')
+    pending_orders = InvOrderSerializer(pending_orders, many=True).data
+    return Response(pending_orders)
+
+@api_view(['POST'])
+def receiveInvOrder(request):
+    response_data = {'message': ''}
+    orderInfo = request.data
+
+    try:
+        orderId = int(orderInfo.get('orderId'))
+        receivedQty = int(orderInfo.get('receivedQty'))
+    except (ValueError, TypeError):
+        response_data['message'] = 'Invalid orderId or receivedQty provided.'
+        return Response(response_data, status=400)
+
+    try:
+        order = InventoryOrders.objects.get(id=orderId)
+        item = order.itemId  
+    except InventoryOrders.DoesNotExist:
+        response_data['message'] = 'Cannot find entry for this order in the database.'
+        return Response(response_data, status=404)
+    except Item.DoesNotExist:
+        response_data['message'] = 'Cannot find associated item for this order in the database.'
+        return Response(response_data, status=404)
+
+    order.order_status = 'completed'
+    order.qty_received = receivedQty
+    print(f'prder: {order}')
+    order.save()
+
+    item.current_qty += receivedQty
+    item.is_ordered = "False" 
+    if 0 < item.current_qty < item.min_threshold_qty:
+        item.qty_status = 'insufficient'
+    elif item.min_threshold_qty <= item.current_qty <= item.max_threshold_qty:
+        item.qty_status = 'sufficient'
+    elif item.current_qty > item.max_threshold_qty:
+        item.qty_status = 'surplus'
+    print(f'item: {item}')
+    item.save()
+
+    response_data['message'] = 'Inventory updated successfully.'
+    return Response(response_data)
 
 # sales related views will go below
 def sales(request):

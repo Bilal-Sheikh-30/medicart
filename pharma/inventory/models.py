@@ -72,6 +72,7 @@ class Item(models.Model):
     min_threshold_qty = models.IntegerField()
     max_threshold_qty = models.IntegerField()
     current_qty = models.IntegerField(default=0)
+    # qty=0 : finished / 0 < qty < min threshold : insufficient / min threshold < qty < max threshold : sufficient / max threshold < qty : surplus
     qty_status = models.CharField(max_length=100)
     description = models.CharField(max_length=500, null=True, blank=True)
     usage = models.CharField(max_length=1000, blank=True, null=True)
@@ -79,21 +80,26 @@ class Item(models.Model):
     qty_sold = models.IntegerField(default=0)
     # item_status: active / inactive 
     item_status = models.CharField(max_length=20, default='active')
+    is_ordered = models.CharField(max_length=10, default=False)
 
     def __str__(self):
-        return self.name
+        # f"Order #{self.id}"
+        return f"Order #{self.id}"
     
 
 #following table will hold record of orders made by warehouse to the vendors
 class InventoryOrders(models.Model):
     orderDate = models.DateTimeField(auto_now_add=True)
     itemId = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='itemid')
-    qty_ordered = models.IntegerField()
+    # qty_ordered = models.IntegerField()
+    qty_ordered = models.CharField(max_length=50)
+    qty_received = models.CharField(max_length=50, default=0)
+    # order_status: pending / completed / returned
     order_status = models.CharField(max_length=50)
     vendorID = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='vendorId') 
 
     def __str__(self):
-        return self.id
+        return f"Order #{self.id}"
 
 
 class Symptom(models.Model):
