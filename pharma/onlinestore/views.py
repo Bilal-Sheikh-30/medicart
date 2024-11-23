@@ -1,7 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from inventory.models import CustomUser
 from django.contrib.auth import login, authenticate
-from django.contrib import messages
 from django.urls import reverse
 
 from rest_framework.decorators import api_view
@@ -9,6 +8,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import UserSerializer,OrderSerializer
 from .models import *
+from inventory import models as invModels
+from inventory import serializers as invSerializers
+from django.db.models import Q
+
 # Create your views here.
 
 def homepage(request):
@@ -65,4 +68,61 @@ def signupFunction(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+def itemByCategory(request, catgId):
+    items = invModels.Item.objects.filter(category = catgId, item_status = 'active').exclude(qty_status = 'finished')
+    if items.exists():
+        serializedItems = invSerializers.ItemSerializer(items, many=True).data
+        return Response(serializedItems, status=status.HTTP_200_OK)
+    else:
+        return Response('No items for this category', status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['GET'])
+def getHotItems(request):
+    hotItems = invModels.Item.objects.filter(item_status = 'active').exclude(Q(qty_status = 'finished') | Q(qty_sold = 0)).order_by('-qty_sold')
+    if hotItems.exists():
+        serializedHotItems = invSerializers.ItemSerializer(hotItems, many=True).data
+        return Response(serializedHotItems, status=status.HTTP_200_OK)
+    else:
+        return Response('Np hot items rightnow :(', status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['POST'])
+def searchItems(request):
+    queriedItem = request.data.get('search')
+    
+    if not queriedItem:
+        return Response(
+            {'detail': 'Search term is required.'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    # search in item table with NAME
+    searchResult_item = invModels.Item.objects.filter(name=queriedItem)
+    
+    # Search for formulas by name
+    searchResult_formula = invModels.MedFormula.objects.filter(formula_name=queriedItem)
+
+    items_from_formula = []
+    if searchResult_formula.exists():
+        formula = searchResult_formula.first()
+        items_from_formula = invModels.Item.objects.filter(med_formula=formula)
+    
+    combined_items = searchResult_item.union(items_from_formula)
+
+    serialized_items = invSerializers.ItemSerializer(combined_items, many=True).data
+
+    if serialized_items:
+        return Response(
+            {
+                'searchResult': serialized_items,
+            },
+            status=status.HTTP_200_OK
+        )
+    else:
+        return Response(
+            {'detail': 'No matching items or formulas found.'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+
 

@@ -20,6 +20,7 @@ class Order(models.Model):
     payment_mode = models.CharField(max_length=20)
     payment_receipt = models.ImageField(upload_to='payments/', blank=True, null=True)
     payment_status = models.CharField(max_length=50)
+    # pending / shipped / completed / canceled
     order_status = models.CharField(max_length=20, null=True)
 
     def __str__(self):

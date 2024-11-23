@@ -6,7 +6,6 @@ from .forms import CustomUserSignupForm
 # Register your models here.
 
 admin.site.register(Vendor)
-admin.site.register(Address)
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserSignupForm
