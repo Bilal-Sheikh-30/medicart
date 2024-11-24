@@ -9,6 +9,8 @@ admin.site.register(Vendor)
 admin.site.register(Address)
 admin.site.register(Item)
 
+
+
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserSignupForm
     model = CustomUser
