@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import *
 
+
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
@@ -49,3 +50,5 @@ class InvOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = InventoryOrders
         fields = '__all__'
+
+

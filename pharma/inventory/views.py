@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from .models import *
+from onlinestore import models
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -338,7 +339,7 @@ def orderByInv(request):
         send_mail(
             subject,
             message,
-            'bilalsheikh3011@gmail.com',   # Replace with your email
+            'aadi64499@gmail.com',   # Replace with your email
             [recipient_email],
             fail_silently=False,
         )
@@ -416,6 +417,111 @@ def pending_orders(request):
     pending_orders = Order.objects.filter(order_status="Pending")
     serialized_orders = OrderSerializer(pending_orders, many=True).data
     return Response(serialized_orders)
+
+
+@api_view(['GET'])
+def get_order_detail(request, order_id):
+    data = {
+        'order': '',
+        'cart': []
+    }
+
+    try:
+        # Fetch the order
+        order = get_object_or_404(Order, id=order_id)
+    except:
+        return Response({'error': 'Cannot find order'}, status=404)
+
+    try:
+        # Fetch all cart details for the order
+        cart_details = CartDetails.objects.filter(cartId=order.cartId_id)
+    except:
+        return Response({'error': 'Cannot find cart details'}, status=404)
+
+    # Serialize the order
+    order_serialized = OrderSerializer(order).data
+
+    # Serialize each cart entry and add item details
+    cart_serialized = []
+    for cart_entry in cart_details:
+        cart_data = CartSerializer(cart_entry).data
+
+        # Fetch the item details for the product
+        try:
+            item = get_object_or_404(Item, id=cart_entry.prodId_id)
+            item_data = ItemSerializer(item).data
+            cart_data['item_details'] = item_data  # Append item details to the cart entry
+        except:
+            cart_data['item_details'] = {'error': 'Item not found'}
+
+        cart_serialized.append(cart_data)
+
+    # Combine the order and cart details
+    data['order'] = order_serialized
+    data['cart'] = cart_serialized
+
+    return Response(data)
+
+@api_view(['PUT'])
+def edit_order(request, order_id):
+    response_data = {'message': ''}
+
+    try:
+        # Fetch the item to be updated
+        order = Order.objects.get(id=order_id)
+    except Item.DoesNotExist:
+        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Extract updated item data from the request
+    updated_data = {
+        'net_total': request.data.get('net_total', order.net_total),
+        'payment_mode': request.data.get('payment_mode', order.payment_mode),
+        'payment_receipt': request.data.get('med_formula', order.payment_receipt),
+        'payment_status': request.data.get('payment_status', order.payment_status),
+        'address_id': request.data.get('address_id', order.address_id),
+        'cartId_id': request.data.get('cartId_id', order.cartId_id),
+        'rider_id': request.data.get('rider_id',order.rider_id),  
+        'order_status': request.data.get('order_status', order.order_status),
+    }
+
+    # Serialize and validate the updated data
+    order_serializer = OrderSerializer(order, data=updated_data, partial=True)
+
+    # Validate and update item
+    if order_serializer.is_valid():
+        order_serializer.save()
+        # Check if order_status is updated to 'shipped'
+        if updated_data.get('order_status') == 'shipped':
+        # Email configuration
+            subject = f"Order Update: Your Order #{order.id} Has Been Shipped"
+            message = (
+                f"Dear {order.cartId.userID.first_name} {order.cartId.userID.last_name},\n\n"
+                f"Your order with ID {order.id} has been shipped.\n"
+                f"Here are the order details:\n"
+                f"Net Total: {order.net_total}\n"
+                f"Payment Mode: {order.payment_mode}\n\n"
+                f"Thank you for choosing us.\n"
+                f"Team MediCart"
+            )
+            recipient_email = order.user.email  # Assuming order.user.email exists
+
+            # Send the email
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    'aadi64499@gmail.com',  # Replace with your email
+                    [recipient_email],
+                    fail_silently=False,
+                )
+                response_data['email_message'] = 'Email notification sent to the user.'
+            except Exception as e:
+                response_data['email_message'] = f"Failed to send email: {str(e)}"
+        # email end
+        response_data['message'] = 'Order updated successfully.'
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    return Response(order_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # views related to rider will go below
 def rider(request):

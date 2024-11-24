@@ -1,9 +1,12 @@
 from django.db import models
 from inventory.models import CustomUser, Item, Address
 # Create your models here.
-
 class Cart(models.Model):
-    userId = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='cart')
+    userID=models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_cart',null=True)
+    placed_on = models.DateTimeField(auto_now_add=True,null=True)
+
+class CartDetails(models.Model):
+    cartId = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartinfo')
     prodId = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='prodid')
     prodPrice = models.FloatField()
     qty = models.IntegerField()
@@ -12,7 +15,6 @@ class Cart(models.Model):
         return str(self.id)
     
 class Order(models.Model):
-    placed_on = models.DateTimeField(auto_now_add=True)
     cartId = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartid')
     address = models.ForeignKey(Address, on_delete=models.CASCADE, related_name='addressid')
     net_total = models.IntegerField()
@@ -24,4 +26,4 @@ class Order(models.Model):
 
     def __str__(self):
         return str(self.id)
-    
+

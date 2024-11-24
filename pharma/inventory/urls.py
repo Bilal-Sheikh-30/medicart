@@ -30,4 +30,6 @@ urlpatterns = [
     path('view_pend_order/', views.pending_orders, name='pendingorder'),
     path('receiveInvOrder/', views.receiveInvOrder, name='receiveInvOrder'),
     path('logout/', LogoutView.as_view(next_page=homepage), name='logout'),
+    path('OrderDetails/<int:order_id>/', views.get_order_detail, name='OrderDetails'),
+    path('editorder/<int:order_id>/', views.edit_order, name='edit_orderpage'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,7 +1,7 @@
 # serializers.py
 from rest_framework import serializers
 from inventory.models import CustomUser  # Adjust the import according to your project structure
-from .models import Cart,Order
+from .models import Cart,Order,CartDetails
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,4 +16,8 @@ class UserSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
+        fields = '__all__'
+class CartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartDetails
         fields = '__all__'

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Vendor,Address
+from .models import CustomUser, Vendor,Address,Item
 
 from django.contrib.auth.admin import UserAdmin
 from .forms import CustomUserSignupForm
@@ -7,6 +7,7 @@ from .forms import CustomUserSignupForm
 
 admin.site.register(Vendor)
 admin.site.register(Address)
+admin.site.register(Item)
 
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserSignupForm
