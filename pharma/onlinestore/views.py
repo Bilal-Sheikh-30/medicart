@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import UserSerializer,OrderSerializer
+from .serializers import *
 from .models import *
 from inventory import models as invModels
 from inventory import serializers as invSerializers
@@ -73,7 +73,7 @@ def signupFunction(request):
 def itemByCategory(request, catgId):
     items = invModels.Item.objects.filter(category = catgId, item_status = 'active').exclude(qty_status = 'finished')
     if items.exists():
-        serializedItems = invSerializers.ItemSerializer(items, many=True).data
+        serializedItems = OnlineItemSerializer(items, many=True).data
         return Response(serializedItems, status=status.HTTP_200_OK)
     else:
         return Response('No items for this category', status=status.HTTP_404_NOT_FOUND)
@@ -82,7 +82,7 @@ def itemByCategory(request, catgId):
 def getHotItems(request):
     hotItems = invModels.Item.objects.filter(item_status = 'active').exclude(Q(qty_status = 'finished') | Q(qty_sold = 0)).order_by('-qty_sold')
     if hotItems.exists():
-        serializedHotItems = invSerializers.ItemSerializer(hotItems, many=True).data
+        serializedHotItems = OnlineItemSerializer(hotItems, many=True).data
         return Response(serializedHotItems, status=status.HTTP_200_OK)
     else:
         return Response('Np hot items rightnow :(', status=status.HTTP_404_NOT_FOUND)
