@@ -8,7 +8,7 @@ class Cart(models.Model):
 class CartDetails(models.Model):
     cartId = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartinfo')
     prodId = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='prodid')
-    prodPrice = models.FloatField()
+    prodPrice = models.CharField(max_length=20,null=True)
     qty = models.IntegerField()
 
     def __str__(self):
@@ -20,7 +20,8 @@ class Order(models.Model):
     net_total = models.IntegerField()
     rider = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='rider', blank=True, null=True)
     payment_mode = models.CharField(max_length=20)
-    payment_receipt = models.ImageField(upload_to='payments/', blank=True, null=True)
+    # payment_receipt = models.ImageField(upload_to='payments/', blank=True, null=True)
+    transaction_id = models.CharField(max_length=20,null=True ,default=None)
     payment_status = models.CharField(max_length=50)
     # pending / shipped / completed / canceled
     order_status = models.CharField(max_length=20, null=True)

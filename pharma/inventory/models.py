@@ -22,7 +22,7 @@ class CustomUser(AbstractUser):
 
 class Address(models.Model):
     userID = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='userid')
-    address_title = models.CharField(max_length=100)
+    address_title = models.CharField(max_length=100,null=True)
     address = models.CharField(max_length=1000)
 
     def __str__(Self):
@@ -37,6 +37,7 @@ class Company(models.Model):
 class MedCategory(models.Model):
     # surgical ins / medicine / something else
     category_name = models.CharField(max_length=1000)
+    cat_image=models.ImageField(upload_to='photos/', blank=True, null=True)
 
     def __str__(self):
         return self.category_name
@@ -83,8 +84,7 @@ class Item(models.Model):
     is_ordered = models.CharField(max_length=10, default=False)
 
     def __str__(self):
-        # f"Order #{self.id}"
-        return f"Order #{self.id}"
+        return f"Item #{self.id}"
     
 
 #following table will hold record of orders made by warehouse to the vendors
@@ -105,3 +105,15 @@ class InventoryOrders(models.Model):
 class Symptom(models.Model):
     med_formula = models.ForeignKey(MedFormula, on_delete=models.CASCADE, related_name='med_formula')
     symptom = models.CharField(max_length=200, null=True)
+
+class QRCode(models.Model):
+    image = models.ImageField(upload_to='qr_codes/')
+
+    def save(self, *args, **kwargs):
+        if QRCode.objects.exists() and not self.pk:
+            # Delete the existing QR code
+            QRCode.objects.all().delete()
+        super().save(*args, **kwargs)
+
+    def _str_(self):
+        return f"QR Code {self.pk}"

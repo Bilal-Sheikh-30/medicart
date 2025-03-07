@@ -12,7 +12,9 @@ from onlinestore.models import *
 from onlinestore.serializers import *
 from django.core.mail import send_mail
 from django.db.models import Q
-
+from django.db import transaction
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.csrf import csrf_exempt
 
 
@@ -152,18 +154,17 @@ def editformula(request, formula_id):
     response_data['message'] = 'Formula updated.'
     return Response(response_data, status=status.HTTP_200_OK)
 
-# tameez k sath items categorize kr k send krna hay
 @api_view(['GET'])
 def allitems(request):
     items = Item.objects.all()
-    med_images = MedImage.objects.all()
+    # med_images = MedImage.objects.all()
 
-    serialized_items = ItemSerializer(items, many=True).data
-    serialized_images = MedImageSerializer(med_images,many=True).data
+    serialized_items = OnlineItemSerializer(items, many=True).data
+    # serialized_images = MedImageSerializer(med_images,many=True).data
 
     data = {
         "items" : serialized_items,
-        "images" : serialized_images
+        # "images" : serialized_images
     }
     return Response(data)
 
@@ -305,7 +306,7 @@ def get_item(request, item_id):
 @api_view(['GET'])
 def getLowStockItems(request):
     lowStocktems = Item.objects.filter(Q(qty_status='insufficient') | Q(qty_status='finished')).exclude(is_ordered=True)
-    lowStocktems = ItemSerializer(lowStocktems, many=True).data
+    lowStocktems = OnlineItemSerializer(lowStocktems, many=True).data
     return Response(lowStocktems)
 
 @api_view(['POST'])
@@ -361,11 +362,41 @@ def orderByInv(request):
         else:
             return Response({"message": "Order placed and email sent to the vendor."})
 
+
 @api_view(['GET'])
 def trackInvOrder(request):
+    # Fetch pending orders and related item information
     pending_orders = InventoryOrders.objects.filter(order_status='pending').order_by('-orderDate')
-    pending_orders = InvOrderSerializer(pending_orders, many=True).data
-    return Response(pending_orders)
+    
+    # Adding item information manually to the response
+    response_data = []
+    for order in pending_orders:
+        # Fetch the first image for the current itemId
+        image = MedImage.objects.filter(item_id=order.itemId.id) # Corrected to use .first()
+        image= MedImageSerializer(image ,many=True).data
+        # Only store the image URL if image exists
+        image_url = image if image else None
+        
+        response_data.append({
+            "id": order.id,
+            "orderDate": order.orderDate,
+            "qty_ordered": order.qty_ordered,
+            "qty_received": order.qty_received,
+            "order_status": order.order_status,
+            "itemId": order.itemId.id,
+            "vendorID": order.vendorID.id,
+            "info": {
+                "item_name": order.itemId.name,
+                "item_description": order.itemId.description,
+                "item_price": order.itemId.price,
+                "vendor_name": order.vendorID.name,
+                "image": image_url,  # Provide only the image URL
+            }
+        })
+    
+    return Response(response_data)
+
+
 
 @api_view(['POST'])
 def receiveInvOrder(request):
@@ -464,65 +495,175 @@ def get_order_detail(request, order_id):
 
 @api_view(['PUT'])
 def edit_order(request, order_id):
+    def update_item_inventory(cart_item):
+        try:
+            item = cart_item.prodId
+            item.qty_sold -= cart_item.qty
+            item.current_qty += cart_item.qty
+
+            # Update inventory status
+            if 0 < item.current_qty < item.min_threshold_qty:
+                item.qty_status = 'insufficient'
+            elif item.min_threshold_qty <= item.current_qty <= item.max_threshold_qty:
+                item.qty_status = 'sufficient'
+            elif item.current_qty > item.max_threshold_qty:
+                item.qty_status = 'surplus'
+
+            item.save()
+            return True
+        except Exception as e:
+            print(f'Error updating inventory for item {cart_item.prodId.id}: {e}')
+            return False
+
+    def send_order_email(order, user):
+        subject = f"Order Update for: {order.id}"
+        if order.order_status == 'cancelled':
+            message = (
+                f"Dear {user.first_name} {user.last_name},\n\n"
+                f"Your order with ID {order.id} could not be shipped due to unverified payment.\n"
+                f"Sorry for the inconvenience.\n\n"
+                f"Team MediCart"
+            )
+        else:
+            message = (
+                f"Dear {user.first_name} {user.last_name},\n\n"
+                f"Your order with ID {order.id} has been shipped.\n"
+                f"Net Total: {order.net_total}\n"
+                f"Payment Mode: {order.payment_mode}\n\n"
+                f"Thank you for choosing us.\n\n"
+                f"Team MediCart"
+            )
+
+        try:
+            send_mail(subject, message, 'your_email@example.com', [user.email], fail_silently=False)
+            print(f"Email sent to {user.email}")
+            return True
+        except Exception as e:
+            print(f'Error sending email: {e}')
+            return False
+
+    payment_status = request.data.get('payment_status')
+    rider_id = request.data.get('riderId')
     response_data = {'message': ''}
 
     try:
-        # Fetch the item to be updated
         order = Order.objects.get(id=order_id)
-    except Item.DoesNotExist:
+        user = order.cartId.userID
+    except Order.DoesNotExist:
         return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Extract updated item data from the request
-    updated_data = {
-        'net_total': request.data.get('net_total', order.net_total),
-        'payment_mode': request.data.get('payment_mode', order.payment_mode),
-        'payment_receipt': request.data.get('med_formula', order.payment_receipt),
-        'payment_status': request.data.get('payment_status', order.payment_status),
-        'address_id': request.data.get('address_id', order.address_id),
-        'cartId_id': request.data.get('cartId_id', order.cartId_id),
-        'rider_id': request.data.get('rider_id',order.rider_id),  
-        'order_status': request.data.get('order_status', order.order_status),
-    }
+    failed_updates = []
+    try:
+        with transaction.atomic():  
+            if order.payment_mode == 'online' and payment_status == 'paid':
+                if rider_id:
+                    rider = get_object_or_404(CustomUser, id=rider_id, user_type='rider')
+                    order.rider = rider
+                order.payment_status = 'paid'
+                order.order_status = 'shipped'
+            elif order.payment_mode == 'online' and payment_status == 'unpaid':
+                order.payment_status = 'unpaid'
+                order.order_status = 'cancelled'
 
-    # Serialize and validate the updated data
-    order_serializer = OrderSerializer(order, data=updated_data, partial=True)
+                # Update inventory
+                cart_items = CartDetails.objects.filter(cartId=order.cartId)
+                for cart_item in cart_items:
+                    if not update_item_inventory(cart_item):
+                        failed_updates.append(cart_item.prodId.id)
+            else:
+                if rider_id:
+                    rider = get_object_or_404(CustomUser, id=rider_id, user_type='rider')
+                    order.rider = rider
+                order.order_status = 'shipped'
 
-    # Validate and update item
-    if order_serializer.is_valid():
-        order_serializer.save()
-        # Check if order_status is updated to 'shipped'
-        if updated_data.get('order_status') == 'shipped':
-        # Email configuration
-            subject = f"Order Update: Your Order #{order.id} Has Been Shipped"
-            message = (
-                f"Dear {order.cartId.userID.first_name} {order.cartId.userID.last_name},\n\n"
-                f"Your order with ID {order.id} has been shipped.\n"
-                f"Here are the order details:\n"
-                f"Net Total: {order.net_total}\n"
-                f"Payment Mode: {order.payment_mode}\n\n"
-                f"Thank you for choosing us.\n"
-                f"Team MediCart"
-            )
-            recipient_email = order.user.email  # Assuming order.user.email exists
+            order.save()
+    except Exception as e:
+        response_data['message'] = f"Error updating order: {e}"
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-            # Send the email
-            try:
-                send_mail(
-                    subject,
-                    message,
-                    'aadi64499@gmail.com',  # Replace with your email
-                    [recipient_email],
-                    fail_silently=False,
-                )
-                response_data['email_message'] = 'Email notification sent to the user.'
-            except Exception as e:
-                response_data['email_message'] = f"Failed to send email: {str(e)}"
-        # email end
-        response_data['message'] = 'Order updated successfully.'
+    # Send order update email
+    email_status = send_order_email(order, user)
+    if email_status:
+        if failed_updates:
+            response_data['message'] = f"Order updated, email sent, but failed inventory updates for items: {failed_updates}."
+        else:
+            response_data['message'] = 'Order updated successfully, email sent.'
         return Response(response_data, status=status.HTTP_200_OK)
-
-    return Response(order_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        response_data['message'] = 'Order updated, but email failed.'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 # views related to rider will go below
-def rider(request):
-    return render(request,'inv_layout.html')
+
+@api_view(['GET'])
+def getvendors(request):
+
+    vendors = Vendor.objects.all()
+    vendors = VendorSerializer(vendors, many=True).data
+    return Response(vendors, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+def getrider(request):
+    riders = CustomUser.objects.filter(user_type='rider')
+    riders = UserSerializer(riders, many=True).data
+    return Response(riders, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+def showrides(request):
+    assignedOrders = Order.objects.filter(order_status='shipped')
+    print(assignedOrders)
+    if assignedOrders.exists():
+        assignedOrders = OrderSerializerforRider(assignedOrders, many=True).data
+        return Response(assignedOrders, status=status.HTTP_200_OK)
+    else:
+        return Response({"detail": "No assigned orders found."}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@api_view(['PATCH'])
+def deliveryupdate(request, orderID):
+    deliveryStatus = request.data.get('deliveryStatus')
+    try:
+        order = Order.objects.get(id=orderID)
+        # if request.user != order.rider:
+        #     return Response('Unauthorized Access', status=status.HTTP_400_BAD_REQUEST)
+    except Order.DoesNotExist:
+        return Response('Can not find order.', status=status.HTTP_404_NOT_FOUND)
+    
+    if deliveryStatus == 'completed':
+        order.payment_status = 'paid'
+        order.order_status = 'completed'
+    else:
+        order.order_status = 'cancelled'
+        
+        try:
+            cart = Cart.objects.get(id=order.cartId.id)
+        except Cart.DoesNotExist:
+            return Response('Cart not found', status=status.HTTP_404_NOT_FOUND)
+        
+        cartItems = CartDetails.objects.filter(cartId=cart)
+        if not cartItems.exists():
+            return Response('No items found in the cart', status=status.HTTP_404_NOT_FOUND)
+        
+        for item in cartItems:
+            try:
+                itemfromDb = Item.objects.get(id=item.prodId.id)
+            except Item.DoesNotExist:
+                continue  
+            
+            itemfromDb.qty_sold -= item.qty
+            itemfromDb.current_qty += item.qty
+            
+            if 0 < itemfromDb.current_qty < itemfromDb.min_threshold_qty:
+                itemfromDb.qty_status = 'insufficient'
+            elif itemfromDb.min_threshold_qty <= itemfromDb.current_qty <= itemfromDb.max_threshold_qty:
+                itemfromDb.qty_status = 'sufficient'
+            elif itemfromDb.current_qty > itemfromDb.max_threshold_qty:
+                itemfromDb.qty_status = 'surplus'
+            
+            print(itemfromDb.current_qty)
+            itemfromDb.save()
+        
+    print(f'order: {order.order_status}')
+    order.save()
+    
+    return Response('Order updated successfully', status=status.HTTP_200_OK)
