@@ -69,7 +69,7 @@ medicart-backend/
 
 ### 1. Clone the Repository
 ```bash
-git clone <https://github.com/Bilal-Sheikh-30/medicart.git>
+git clone https://github.com/Bilal-Sheikh-30/medicart.git
 cd medicart-backend
 ```
 
